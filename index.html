@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>晉心守護 - 醫保秘書</title>
+  <style>
+    /* 基礎版面與顏色設定 */
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f1ea; /* 米色背景 */
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .header {
+      text-align: center;
+      color: #1a4d4e; /* 暗綠色 */
+      margin-bottom: 20px;
+      border-bottom: 2px solid #d4c2a5; /* 金沙色點綴 */
+      padding-bottom: 10px;
+    }
+    .policy-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      border-left: 6px solid #1a4d4e;
+    }
+    .policy-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1a4d4e;
+      margin-bottom: 12px;
+    }
+    .policy-detail {
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: #555;
+      display: flex;
+      justify-content: space-between;
+    }
+    .badge {
+      display: inline-block;
+      background: #e0f2f1;
+      color: #00695c;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    #loading {
+      text-align: center;
+      color: #888;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2>晉心守護 - 醫保秘書</h2>
+  </div>
+  
+  <div id="loading">讀取保單資料中，請稍候...</div>
+  <!-- 這裡會用來動態產生保單卡片 -->
+  <div id="policy-list"></div>
+
+  <!-- 引入 LINE LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  
+  <script>
+    // 你的專屬 Google API 網址
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbyz-MZRtawVq1OC5Kl27c54OUmrBh4GD1xhWfzPb0Qy-CGC5IOSwo_RMP_G41DHp7Dj/exec';
+    
+    // 目前先寫死一個測試用的 LINE ID (對應試算表裡王大明的 U1234567890abcdef)
+    const testLineId = 'U1234567890abcdef'; 
+
+    // 向 Google 試算表索取資料的函式
+    async function fetchPolicies() {
+      try {
+        const response = await fetch(apiUrl + "?lineId=" + testLineId);
+        const data = await response.json();
+        
+        document.getElementById('loading').style.display = 'none';
+        const list = document.getElementById('policy-list');
+        
+        if (data.length === 0) {
+          list.innerHTML = '<p style="text-align:center;">目前系統中沒有您的保單資料。</p>';
+          return;
+        }
+        
+        // 迴圈讀取每一筆保單，並組合出 HTML 卡片
+        data.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'policy-card';
+          card.innerHTML = `
+            <div class="badge">${item['保險公司']}</div>
+            <div class="policy-title">${item['險種名稱']}</div>
+            <div class="policy-detail">
+              <span>被保險人：<strong>${item['被保險人']}</strong></span>
+              <span>保額：<strong>${item['保額']}</strong></span>
+            </div>
+            <div class="policy-detail">
+              <span>扣款方式：${item['扣款方式']}</span>
+            </div>
+            <div class="policy-detail" style="font-size: 13px; color: #999; margin-top: 8px;">
+              <span>要保人：${item['要保人']}</span>
+              <span>投保日：${item['投保日期']}</span>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+      } catch (error) {
+        document.getElementById('loading').innerText = '資料讀取失敗，請聯絡服務人員。';
+        console.error(error);
+      }
+    }
+
+    // 啟動執行
+    fetchPolicies();
+  </script>
+</body>
+</html>
