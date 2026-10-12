@@ -29,9 +29,14 @@
     <div id="policy-list"></div>
 
     <script>
-        // 已經替換為全新的 API 網址
         const apiUrl = 'https://script.google.com/macros/s/AKfycbxpYiEnU6vSmrOtzi7yKLcm6YILhUpr-gIU646MYZ47gnNiTZNLkKS4I8av-2KZ9fHw/exec';
         const myLiffId = '2011979320-UwYAb14w';
+
+        // 顯示錯誤訊息的工具 (剛剛就是漏了這一段！)
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-container').innerHTML = `<div class="error-msg">${msg}</div>`;
+        }
 
         async function initializeLiff() {
             try {
@@ -47,4 +52,49 @@
             }
         }
 
-        async function fetchPolicies(userLineId)
+        async function fetchPolicies(userLineId) {
+            try {
+                const response = await fetch(apiUrl + "?lineId=" + userLineId);
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                const list = document.getElementById('policy-list');
+                
+                if (data.length === 0) {
+                    list.innerHTML = `<div class="error-msg">目前系統中沒有找到您的保單資料。<br><br>💡 <b>您的專屬 LINE ID 是：</b><br><br><span style="color:blue; font-size:18px; user-select:all; background:#e0e0e0; padding:5px; border-radius:4px; word-break: break-all;">${userLineId}</span><br><br>請長按複製上方代碼，並貼到 Google 試算表的 LINE_ID 欄位即可綁定！</div>`;
+                    return;
+                }
+                
+                data.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'policy-card';
+                    card.innerHTML = `
+                        <div class="policy-title">
+                            ${item['險種名稱']}
+                            <span class="badge">${item['保險公司']}</span>
+                        </div>
+                        <div class="policy-detail">
+                            <span>被保險人：<strong>${item['被保險人']}</strong></span>
+                            <span>保額：<strong>${item['保額']}</strong></span>
+                        </div>
+                        <div class="policy-detail">
+                            <span>扣款方式：${item['扣款方式']}</span>
+                        </div>
+                        <div class="policy-footer">
+                            <span>要保人：${item['要保人']}</span>
+                            <span>投保日：${item['投保日期']}</span>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (err) {
+                showError("無法讀取資料。請確認 Google 試算表部署權限已設為「所有人」。");
+            }
+        }
+
+        window.onload = function() {
+            initializeLiff();
+        };
+    </script>
+</body>
+</html>
