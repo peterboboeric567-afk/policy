@@ -1,126 +1,189 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>晉心守護 - 醫保秘書</title>
-  <style>
-    /* 基礎版面與顏色設定 */
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #f4f1ea; /* 米色背景 */
-      margin: 0;
-      padding: 20px;
-      color: #333;
-    }
-    .header {
-      text-align: center;
-      color: #1a4d4e; /* 暗綠色 */
-      margin-bottom: 20px;
-      border-bottom: 2px solid #d4c2a5; /* 金沙色點綴 */
-      padding-bottom: 10px;
-    }
-    .policy-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      border-left: 6px solid #1a4d4e;
-    }
-    .policy-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #1a4d4e;
-      margin-bottom: 12px;
-    }
-    .policy-detail {
-      font-size: 15px;
-      margin-bottom: 6px;
-      color: #555;
-      display: flex;
-      justify-content: space-between;
-    }
-    .badge {
-      display: inline-block;
-      background: #e0f2f1;
-      color: #00695c;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      margin-bottom: 10px;
-      font-weight: bold;
-    }
-    #loading {
-      text-align: center;
-      color: #888;
-      font-size: 14px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>晉心守護 - 醫保秘書</title>
+    <!-- 引入 LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        /* 基礎版面與顏色設定 */
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f4f1ea; /* 米色背景 */
+            margin: 0;
+            padding: 15px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            color: #1a4d4e; /* 暗綠色 */
+            margin-bottom: 20px;
+            border-bottom: 2px solid #d4c2a5; /* 金沙色點綴 */
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin: 0 0 5px 0;
+        }
+        .header p {
+            font-size: 14px;
+            margin: 0;
+            color: #666;
+        }
+        .policy-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 6px solid #1a4d4e;
+        }
+        .policy-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a4d4e;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge {
+            background-color: #1a4d4e;
+            color: white;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+        .policy-detail {
+            font-size: 15px;
+            margin-bottom: 6px;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+        }
+        .policy-footer {
+            font-size: 13px;
+            color: #999;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px dashed #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        #loading {
+            text-align: center;
+            color: #1a4d4e;
+            font-size: 16px;
+            margin-top: 30px;
+        }
+        .error-msg {
+            text-align: center;
+            color: #d9534f;
+            padding: 20px;
+            background: #fdf7f7;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="header">
-    <h2>晉心守護 - 醫保秘書</h2>
-  </div>
-  
-  <div id="loading">讀取保單資料中，請稍候...</div>
-  <!-- 這裡會用來動態產生保單卡片 -->
-  <div id="policy-list"></div>
+    <div class="header">
+        <h1>晉心守護</h1>
+        <p>您的專屬醫保秘書 - 保單總覽</p>
+    </div>
 
-  <!-- 引入 LINE LIFF SDK -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  
-  <script>
-    // 你的專屬 Google API 網址
-    const apiUrl = 'https://script.google.com/macros/s/AKfycbyz-MZRtawVq1OC5Kl27c54OUmrBh4GD1xhWfzPb0Qy-CGC5IOSwo_RMP_G41DHp7Dj/exec';
+    <!-- 載入中提示 -->
+    <div id="loading">讀取保單資料中，請稍候...</div>
     
-    // 目前先寫死一個測試用的 LINE ID (對應試算表裡王大明的 U1234567890abcdef)
-    const testLineId = 'U1234567890abcdef'; 
+    <!-- 顯示錯誤訊息用 -->
+    <div id="error-container"></div>
 
-    // 向 Google 試算表索取資料的函式
-    async function fetchPolicies() {
-      try {
-        const response = await fetch(apiUrl + "?lineId=" + testLineId);
-        const data = await response.json();
-        
-        document.getElementById('loading').style.display = 'none';
-        const list = document.getElementById('policy-list');
-        
-        if (data.length === 0) {
-          list.innerHTML = '<p style="text-align:center;">目前系統中沒有您的保單資料。</p>';
-          return;
+    <!-- 保單列表容器 -->
+    <div id="policy-list"></div>
+
+    <script>
+        // 【1】設定你的專屬 Google API 網址與 LIFF ID
+        const apiUrl = 'https://script.google.com/macros/s/AKfycbyz-MZRtawVq1OC5K127c54OUmrBh4GD1xhWfzPbOQy-CGC5IOSwo_RMP_G41DHp7Dj/exec';
+        const myLiffId = '2011979320-UwYAb14w'; // 這是你剛剛產生的正式版 LIFF ID
+
+        // 【2】初始化 LIFF 應用程式
+        async function initializeLiff() {
+            try {
+                await liff.init({ liffId: myLiffId });
+                
+                if (liff.isLoggedIn()) {
+                    // 如果已登入，取得使用者的 LINE profile
+                    const profile = await liff.getProfile();
+                    const userId = profile.userId; // 取得使用者的真實 LINE ID (Uxxxxxxxx)
+                    
+                    // 根據這個真實的 userId 去抓資料
+                    fetchPolicies(userId);
+                } else {
+                    // 如果沒登入，要求使用者登入
+                    liff.login();
+                }
+            } catch (err) {
+                showError("LIFF 初始化失敗，請確認在 LINE 內部開啟，或檢查設定檔。");
+                console.error("LIFF error:", err);
+            }
         }
-        
-        // 迴圈讀取每一筆保單，並組合出 HTML 卡片
-        data.forEach(item => {
-          const card = document.createElement('div');
-          card.className = 'policy-card';
-          card.innerHTML = `
-            <div class="badge">${item['保險公司']}</div>
-            <div class="policy-title">${item['險種名稱']}</div>
-            <div class="policy-detail">
-              <span>被保險人：<strong>${item['被保險人']}</strong></span>
-              <span>保額：<strong>${item['保額']}</strong></span>
-            </div>
-            <div class="policy-detail">
-              <span>扣款方式：${item['扣款方式']}</span>
-            </div>
-            <div class="policy-detail" style="font-size: 13px; color: #999; margin-top: 8px;">
-              <span>要保人：${item['要保人']}</span>
-              <span>投保日：${item['投保日期']}</span>
-            </div>
-          `;
-          list.appendChild(card);
-        });
-      } catch (error) {
-        document.getElementById('loading').innerText = '資料讀取失敗，請聯絡服務人員。';
-        console.error(error);
-      }
-    }
 
-    // 啟動執行
-    fetchPolicies();
-  </script>
+        // 【3】向 Google 試算表抓取該使用者的資料
+        async function fetchPolicies(userLineId) {
+            try {
+                const response = await fetch(apiUrl + "?lineId=" + userLineId);
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                const list = document.getElementById('policy-list');
+                
+                if (data.length === 0) {
+                    list.innerHTML = '<div class="error-msg">目前系統中沒有找到您的保單資料。<br>若有疑問請聯繫晉心守護為您服務。</div>';
+                    return;
+                }
+                
+                // 迴圈讀取每一筆保單，組合出卡片
+                data.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'policy-card';
+                    card.innerHTML = `
+                        <div class="policy-title">
+                            ${item['險種名稱']}
+                            <span class="badge">${item['保險公司']}</span>
+                        </div>
+                        <div class="policy-detail">
+                            <span>被保險人：<strong>${item['被保險人']}</strong></span>
+                            <span>保額：<strong>${item['保額']}</strong></span>
+                        </div>
+                        <div class="policy-detail">
+                            <span>扣款方式：${item['扣款方式']}</span>
+                        </div>
+                        <div class="policy-footer">
+                            <span>要保人：${item['要保人']}</span>
+                            <span>投保日：${item['投保日期']}</span>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                showError("無法讀取資料，請稍後再試。");
+                console.error("Fetch error:", err);
+            }
+        }
+
+        // 顯示錯誤訊息的小工具
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-container').innerHTML = `<div class="error-msg">${msg}</div>`;
+        }
+
+        // 網頁載入完成後，開始執行初始化
+        window.onload = function() {
+            initializeLiff();
+        };
+    </script>
 </body>
 </html>
