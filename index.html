@@ -11,6 +11,10 @@
         .header h1 { font-size: 22px; margin: 0 0 4px 0; }
         .header p { font-size: 13px; margin: 0; color: #666; }
         
+        /* 分組標題 */
+        .group-header { margin-top: 24px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #1a4d4e; display: flex; align-items: center; }
+        .group-header span { font-size: 18px; font-weight: bold; color: #1a4d4e; }
+
         /* 頂部理賠提醒卡片 */
         .summary-card { background: #eef7f6; border: 1px solid #bce1df; border-radius: 10px; padding: 14px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
         .summary-title { font-size: 15px; font-weight: bold; color: #1a4d4e; margin-bottom: 6px; display: flex; align-items: center; }
@@ -40,7 +44,6 @@
     </div>
     
     <div id="loading">讀取保單資料中，請稍候...</div>
-    <div id="summary-container"></div>
     <div id="policy-list"></div>
 
     <script>
@@ -77,77 +80,95 @@
                 
                 document.getElementById('loading').style.display = 'none';
                 const list = document.getElementById('policy-list');
-                const summaryContainer = document.getElementById('summary-container');
                 
                 if (!data || data.length === 0) {
                     list.innerHTML = `<div class="error-msg">目前系統中沒有找到您的保單資料。<br><br>💡 <b>您的專屬 LINE ID 是：</b><br><br><span style="color:#0056b3; font-size:16px; user-select:all; background:#e9ecef; padding:6px 10px; border-radius:4px; word-break: break-all;">${userLineId}</span><br><br>請複製上方代碼傳送給業務員，即可開通您的保單查詢！</div>`;
                     return;
                 }
                 
-                // 1. 自動統計保險公司家數
-                const companies = new Set();
+                // 1. 將資料依照「被保險人」進行自動分組
+                const groupedData = {};
                 data.forEach(item => {
-                    const comp = item['保險公司'];
-                    if (comp) companies.add(comp.trim());
+                    const insured = item['被保險人'] || '未填寫被保人';
+                    if (!groupedData[insured]) {
+                        groupedData[insured] = [];
+                    }
+                    groupedData[insured].push(item);
                 });
-                const companyCount = companies.size;
-                const companyNames = Array.from(companies).join('、');
 
-                // 2. 顯示頂部理賠提示卡片
-                summaryContainer.innerHTML = `
-                    <div class="summary-card">
-                        <div class="summary-title">📋 理賠申請文件提醒</div>
-                        <div class="summary-content">
-                            您目前投保了 <strong>${companyCount}</strong> 家保險公司（${companyNames}）。<br>
-                            若需申請理賠，建議向醫院申請：<br>
-                            • 診斷證明書：<span class="summary-highlight">${companyCount}</span> 份<br>
-                            • 費用收據：<span class="summary-highlight">${companyCount}</span> 份（留意各家正/副本規定）
-                        </div>
-                    </div>
-                `;
-                
-                // 3. 逐筆渲染保單卡片
-                data.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'policy-card';
+                let finalHTML = '';
 
-                    const insured = item['被保險人'] || '-';
-                    const company = item['保險公司'] || '-';
-                    const med = item['醫療／實支保障'] || '-';
-                    const severe = item['重疾／一次金'] || '-';
-                    const acc = item['意外實支'] || '-';
-                    const receipt = item['收據規定'] || '-';
-                    const pay = item['扣款方式'] || '-';
-                    const date = formatDate(item['投保日期']);
+                // 2. 針對每一位被保險人，印出專屬的區塊與理賠提醒
+                for (const [insured, policies] of Object.entries(groupedData)) {
+                    
+                    // 獨立計算這位被保險人有幾家保險公司
+                    const companies = new Set();
+                    policies.forEach(item => {
+                        const comp = item['保險公司'];
+                        if (comp) companies.add(comp.trim());
+                    });
+                    const companyCount = companies.size;
+                    const companyNames = Array.from(companies).join('、');
 
-                    card.innerHTML = `
-                        <div class="policy-title">
-                            <span>${company}</span>
-                            <span class="badge">被保人：${insured}</span>
+                    // 加入分組標題與專屬理賠提醒
+                    finalHTML += `
+                        <div class="group-header">
+                            <span>👤 ${insured} 的專屬保單</span>
                         </div>
-                        <div class="policy-row">
-                            <span class="label">醫療／實支：</span>
-                            <span class="value">${med}</span>
-                        </div>
-                        <div class="policy-row">
-                            <span class="label">重疾／一次金：</span>
-                            <span class="value">${severe}</span>
-                        </div>
-                        <div class="policy-row">
-                            <span class="label">意外實支：</span>
-                            <span class="value">${acc}</span>
-                        </div>
-                        <div class="policy-row">
-                            <span class="label">收據規定：</span>
-                            <span class="value"><span class="badge-receipt">${receipt}</span></span>
-                        </div>
-                        <div class="policy-footer">
-                            <span>扣款：${pay}</span>
-                            <span>投保日：${date}</span>
+                        <div class="summary-card">
+                            <div class="summary-title">📋 ${insured} 的理賠申請提醒</div>
+                            <div class="summary-content">
+                                目前投保了 <strong>${companyCount}</strong> 家保險公司（${companyNames}）。<br>
+                                若需申請理賠，建議向醫院申請：<br>
+                                • 診斷證明書：<span class="summary-highlight">${companyCount}</span> 份<br>
+                                • 費用收據：<span class="summary-highlight">${companyCount}</span> 份
+                            </div>
                         </div>
                     `;
-                    list.appendChild(card);
-                });
+
+                    // 印出這位被保險人的所有保單卡片
+                    policies.forEach(item => {
+                        const company = item['保險公司'] || '-';
+                        const med = item['醫療／實支保障'] || '-';
+                        const severe = item['重疾／一次金'] || '-';
+                        const acc = item['意外實支'] || '-';
+                        const receipt = item['收據規定'] || '-';
+                        const pay = item['扣款方式'] || '-';
+                        const date = formatDate(item['投保日期']);
+
+                        finalHTML += `
+                            <div class="policy-card">
+                                <div class="policy-title">
+                                    <span>${company}</span>
+                                    <span class="badge">被保人：${insured}</span>
+                                </div>
+                                <div class="policy-row">
+                                    <span class="label">醫療／實支：</span>
+                                    <span class="value">${med}</span>
+                                </div>
+                                <div class="policy-row">
+                                    <span class="label">重疾／一次金：</span>
+                                    <span class="value">${severe}</span>
+                                </div>
+                                <div class="policy-row">
+                                    <span class="label">意外實支：</span>
+                                    <span class="value">${acc}</span>
+                                </div>
+                                <div class="policy-row">
+                                    <span class="label">收據規定：</span>
+                                    <span class="value"><span class="badge-receipt">${receipt}</span></span>
+                                </div>
+                                <div class="policy-footer">
+                                    <span>扣款：${pay}</span>
+                                    <span>投保日：${date}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                list.innerHTML = finalHTML;
+
             } catch (err) {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('policy-list').innerHTML = '<div class="error-msg">讀取資料發生錯誤，請稍後再試。</div>';
